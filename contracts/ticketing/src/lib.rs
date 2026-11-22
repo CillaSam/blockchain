@@ -25,8 +25,8 @@ pub use events::{
     TicketTransferred,
 };
 pub use types::{
-    Category, DataKey, Event, EventParams, GiftClaim, PendingPaymentToken, PlatformFee,
-    StoredTicket, Ticket, TicketRecipient, TicketStatus,
+    Auction, Category, DataKey, Event, EventParams, GiftClaim, Offer, PendingPaymentToken,
+    PlatformFee, StoredTicket, Ticket, TicketRecipient, TicketStatus,
 };
 
 use soroban_sdk::{contract, contractimpl, token, Address, Bytes, BytesN, Env, Map, String, Vec};
@@ -2065,8 +2065,9 @@ impl TicketingContract {
         // The sale price is captured before the ticket is overwritten, so the
         // published event carries the price the buyer actually paid.
         let price = ticket.resale_price;
-        let (royalty, seller_amount) = Self::split_resale_price(&event, ticket.resale_price)?;
-        let price = ticket.resale_price;
+        let fee_config = Self::platform_fee_config(&env);
+        let fee_bps = Self::platform_fee_bps(&env);
+        let (royalty, platform_fee, seller_amount) = Self::resale_split(&event, ticket.resale_price, fee_bps)?;
         let seller = ticket.owner.clone();
         Self::move_owner_balance(&env, ticket_id, &seller, &buyer);
         ticket.owner = buyer.clone();

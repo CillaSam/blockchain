@@ -187,3 +187,64 @@ pub struct TicketResold {
     pub price: i128,
     pub royalty: i128,
 }
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+/// Emitted when an auction starts on a ticket (issue #105).
+pub struct AuctionStarted {
+    #[topic]
+    pub ticket_id: u64,
+    pub seller: Address,
+    pub reserve_price: i128,
+    pub ends_at: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+/// Emitted when a bid is placed on an auctioned ticket (issue #105).
+pub struct BidPlaced {
+    #[topic]
+    pub ticket_id: u64,
+    pub bidder: Address,
+    pub amount: i128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+/// Emitted when an auction settles and ownership transfers to the winner (issue #105).
+pub struct AuctionSettled {
+    #[topic]
+    pub ticket_id: u64,
+    pub buyer: Address,
+    pub amount: i128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+/// Emitted when a buyer makes an offer on a listed ticket (issue #106).
+pub struct OfferMade {
+    #[topic]
+    pub ticket_id: u64,
+    pub buyer: Address,
+    pub amount: i128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+/// Emitted when a seller accepts an offer (issue #106).
+pub struct OfferAccepted {
+    #[topic]
+    pub ticket_id: u64,
+    pub buyer: Address,
+    pub amount: i128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+/// Emitted when a buyer cancels their offer (issue #106).
+pub struct OfferCancelled {
+    #[topic]
+    pub ticket_id: u64,
+    pub buyer: Address,
+    pub amount: i128,
+}
