@@ -409,6 +409,16 @@ pub enum DataKey {
     /// Platform fee taken from each primary sale, in basis points (issue #104).
     /// Absent means no fee.
     PlatformFeeBps,
+    /// Platform fee configuration for resales, including fee basis points and
+    /// recipient address (issue #103). Absent means no fee.
+    PlatformFee,
+    /// Highest royalty_bps across all events, cached so set_platform_fee can
+    /// validate that the platform fee plus the highest royalty never exceeds
+    /// 100% (issue #103). Zero when no events have been created.
+    MaxRoyaltyBps,
+    /// Nominated admin awaiting acceptance via accept_admin (issue #100).
+    /// Absent when no admin transfer is pending.
+    PendingAdmin,
     /// Funds the contract holds for resale bids and offers, across all tickets
     /// (issues #105, #106). Blocks a payment token change while non-zero.
     OutstandingResaleFunds,
