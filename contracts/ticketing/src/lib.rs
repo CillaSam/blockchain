@@ -18,6 +18,16 @@ pub use constants::{
 use constants::{LEDGER_BUMP, LEDGER_THRESHOLD};
 pub use error::Error;
 pub use events::{
+    AdminProposed, AdminTransferred, AuctionSettled, AuctionStarted, BidPlaced,
+    ContractInitialized, ContractUpgraded, EventCancelled, EventCreated, ListingCancelled,
+    OfferAccepted, OfferCancelled, OfferMade, OrganizerApproved, OrganizerRevoked,
+    PaymentTokenChanged, PaymentTokenProposed, PlatformFeeUpdated, PrimarySale,
+    PurchaseThrottleUpdated, TicketCheckedIn, TicketIssued, TicketListed, TicketResold,
+    TicketTransferred,
+};
+pub use types::{
+    Auction, Category, DataKey, Event, EventParams, GiftClaim, Offer, PendingPaymentToken,
+    PlatformFee, StoredTicket, Ticket, TicketRecipient, TicketStatus,
     ContractInitialized, EventCancelled, EventCreated, ListingCancelled, OrganizerApproved,
     OrganizerRevoked, PaymentTokenChanged, PaymentTokenProposed, PlatformFeeUpdated,
     PrimarySale, PurchaseThrottleUpdated, TicketCheckedIn, TicketIssued, TicketListed,
@@ -279,6 +289,7 @@ impl TicketingContract {
         }
         // Issue #103: the royalty and the platform fee together cannot take more
         // than the whole resale price.
+        if params.royalty_bps + Self::platform_fee_bps(env.clone()) > BPS_DENOMINATOR {
         if params.royalty_bps + Self::platform_fee_bps_internal(&env) > BPS_DENOMINATOR {
             return Err(Error::InvalidRoyalty);
         }
@@ -1100,6 +1111,12 @@ impl TicketingContract {
         env.storage()
             .instance()
             .set(&DataKey::PlatformFeeBps, &fee_bps);
+        PlatformFeeUpdated {
+            admin: admin.clone(),
+            fee_bps,
+            recipient: admin,
+        }
+        .publish(&env);
         let recipient = admin.clone();
         PlatformFeeUpdated { admin, fee_bps, recipient }.publish(&env);
         Ok(())
@@ -1108,10 +1125,7 @@ impl TicketingContract {
     /// Platform fee in basis points taken from each primary sale (issue #104).
     /// Zero when no fee has been set.
     pub fn platform_fee_bps(env: Env) -> u32 {
-        env.storage()
-            .instance()
-            .get(&DataKey::PlatformFeeBps)
-            .unwrap_or(0)
+        Self::get_platform_fee_bps(&env)
     }
 
     /// Direct, non-marketplace transfer (gift, family member, etc). Publishes
@@ -2085,6 +2099,16 @@ impl TicketingContract {
         // The sale price is captured before the ticket is overwritten, so the
         // published event carries the price the buyer actually paid.
         let price = ticket.resale_price;
+        let fee_config = Self::platform_fee_config(&env);
+        let platform_fee = if let Some(ref fee) = fee_config {
+            Self::calculate_fee(price, fee.bps)?
+        } else {
+            0
+        };
+        let (royalty, seller_net) = Self::split_resale_price(&event, price)?;
+        let seller_amount = seller_net
+            .checked_sub(platform_fee)
+            .ok_or(Error::MathOverflow)?;
         let fee_bps = Self::platform_fee_bps_internal(&env);
         let (royalty, platform_fee, seller_amount) = Self::resale_split(&event, ticket.resale_price, fee_bps)?;
         let seller = ticket.owner.clone();
@@ -2144,6 +2168,7 @@ impl TicketingContract {
         // An auctioned ticket has no fixed price to quote (issue #105).
         Self::ensure_no_auction(&env, ticket_id)?;
         let event = Self::get_event_inner(&env, ticket.event_id)?;
+        let fee_bps = Self::platform_fee_bps(env.clone());
         let fee_bps = Self::platform_fee_bps_internal(&env);
         let (royalty, _, seller_amount) = Self::resale_split(&event, ticket.resale_price, fee_bps)?;
         Ok((ticket.resale_price, royalty, seller_amount))
@@ -2544,6 +2569,13 @@ impl TicketingContract {
                 if seller_amount > 0 {
                     token_client.transfer(&contract, &seller, &seller_amount);
                 }
+                AuctionSettled {
+                    ticket_id,
+                    seller,
+                    winner: winner.clone(),
+                    final_price: bid,
+                }
+                .publish(&env);
                 // AuctionSettled event not yet implemented
                 // AuctionSettled {
                 //     ticket_id,
@@ -2719,6 +2751,13 @@ impl TicketingContract {
         if seller_amount > 0 {
             token_client.transfer(&contract, &owner, &seller_amount);
         }
+        OfferAccepted {
+            ticket_id,
+            seller: owner,
+            buyer,
+            price: offer.amount,
+        }
+        .publish(&env);
         // OfferAccepted event not yet implemented
         // OfferAccepted {
         //     ticket_id,
@@ -2764,6 +2803,7 @@ impl TicketingContract {
             &buyer,
             &offer.amount,
         );
+        OfferCancelled { ticket_id, buyer }.publish(&env);
         // OfferCancelled event not yet implemented
         // OfferCancelled {
         //     ticket_id,
@@ -3303,6 +3343,17 @@ impl TicketingContract {
         Ok(product / BPS_DENOMINATOR as i128)
     }
 
+    /// Calculate fee from price and fee_bps.
+    fn calculate_fee(price: i128, fee_bps: u32) -> Result<i128, Error> {
+        if fee_bps == 0 {
+            return Ok(0);
+        }
+        let product = price
+            .checked_mul(fee_bps as i128)
+            .ok_or(Error::MathOverflow)?;
+        Ok(product / BPS_DENOMINATOR as i128)
+    }
+
     /// Splits a resale price into `(royalty, seller_amount)` using the event's
     /// royalty rate. The seller takes the remainder, so the two always sum to
     /// `price`.
@@ -3626,6 +3677,7 @@ impl TicketingContract {
     /// # Errors
     ///
     /// Returns `Error::NotAdmin` when `admin` is not the stored admin.
+    #[allow(deprecated)]
     // Admin transfer and upgrade functions not yet fully implemented
     // Missing DataKey::PendingAdmin and Error variants
     /*
@@ -3633,7 +3685,7 @@ impl TicketingContract {
         Self::extend_instance_ttl(&env);
         Self::require_admin(&env, &admin)?;
         env.deployer()
-            .update_current_contract(ContractExecutable::Wasm(new_wasm_hash.clone()));
+            .update_current_contract_wasm(new_wasm_hash.clone());
         ContractUpgraded {
             admin,
             new_wasm_hash,
@@ -3729,6 +3781,8 @@ impl TicketingContract {
     }
     */
 
+    fn get_platform_fee_bps(env: &Env) -> u32 {
+        Self::platform_fee_config(env).map_or(0, |fee| fee.bps)
     fn platform_fee_bps_internal(env: &Env) -> u32 {
         env.storage()
             .instance()

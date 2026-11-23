@@ -239,11 +239,6 @@ proptest! {
                         TicketStatus::Revoked | TicketStatus::Refunded => {
                             prop_assert_eq!(res, Err(Ok(Error::Revoked)));
                         }
-                        TicketStatus::Refunded => {
-                            // A refunded ticket is outside this proptest's state
-                            // space: none of the actions below refunds a ticket.
-                            prop_assert_eq!(ticket_before.status, TicketStatus::Refunded);
-                        }
                     }
                 }
                 Action::ListResale => {
@@ -260,11 +255,6 @@ proptest! {
                         }
                         TicketStatus::Revoked | TicketStatus::Refunded => {
                             prop_assert_eq!(res, Err(Ok(Error::Revoked)));
-                        }
-                        TicketStatus::Refunded => {
-                            // A refunded ticket is outside this proptest's state
-                            // space: none of the actions below refunds a ticket.
-                            prop_assert_eq!(ticket_before.status, TicketStatus::Refunded);
                         }
                     }
                 }
@@ -318,11 +308,6 @@ proptest! {
                         }
                         TicketStatus::Revoked | TicketStatus::Refunded => {
                             prop_assert_eq!(res, Err(Ok(Error::Revoked)));
-                        }
-                        TicketStatus::Refunded => {
-                            // A refunded ticket is outside this proptest's state
-                            // space: none of the actions below refunds a ticket.
-                            prop_assert_eq!(ticket_before.status, TicketStatus::Refunded);
                         }
                     }
                 }

@@ -5,7 +5,7 @@ Every fallible entry point of the `ticketing` contract returns
 [`contracts/ticketing/src/error.rs`](../contracts/ticketing/src/error.rs)
 with an explicit `#[repr(u32)]` discriminant, so every variant has a
 **stable numeric code** that integrators can branch on. The enum runs
-from `1` to `83` — code `0` is never produced by this
+from `1` to `98` — code `0` is never produced by this
 contract.
 
 This page is the canonical error reference. Where another document shows
@@ -27,111 +27,113 @@ diagnostic transaction.
 
 ## Full error table
 
-| Code | Variant | Meaning |
-|---|---|---|
-| 1 | `AlreadyInitialized` | `initialize` was called on a contract that already has an admin |
-| 2 | `NotInitialized` | Contract state was read before `initialize` ran (`Admin`, `PaymentToken` or `TokenDecimals` is absent from instance storage) |
-| 3 | `EventNotFound` | No event is stored under `event_id` |
-| 4 | `EventAlreadyExists` | `create_event` / `create_event_with_options` was called with an `event_id` that is already taken |
-| 5 | `TicketNotFound` | No ticket is stored under `ticket_id` |
-| 6 | `NotOrganizer` | The signing address is not the `organizer` of the ticket's event |
-| 7 | `NotOwner` | The signing address is not the ticket's current `owner` |
-| 8 | `AlreadyUsed` | The ticket has already been checked in; the action is not allowed after check-in |
-| 9 | `Revoked` | The ticket was revoked by the organizer; revoked tickets are permanently dead |
-| 10 | `NotForResale` | The ticket's status is not `Resale` (cancelling or buying a listing that does not exist) |
-| 11 | `ResalePriceExceedsCap` | Listing price is above `original_price * max_resale_multiplier_bps / 10000` |
-| 12 | `InvalidPrice` | `price` is negative on `issue_ticket` / `set_tier_price`, or `<= 0` on `list_for_resale` |
-| 13 | `InvalidRoyalty` | `royalty_bps > 10000` (more than 100%) |
-| 14 | `EscrowNotEnabled` | `release_escrow` was called for an event that never called `enable_escrow` |
-| 15 | `EventNotEnded` | The current ledger sequence is still below `event.escrow_release_ledger` |
-| 16 | `PurchaseTooSoon` | The buyer is inside the admin-configured primary-purchase throttle window |
-| 17 | `NotAdmin` | The signing address is not the contract admin set at `initialize` |
-| 18 | `EventAlreadyStarted` | `enable_escrow` was called after the event already issued at least one ticket |
-| 19 | `InvalidEventTime` | `starts_at` is not strictly in the future (`starts_at <= ledger timestamp`) |
-| 20 | `TransfersFrozen` | The event's transfer freeze window has started (`now >= starts_at - transfer_freeze_seconds`) |
-| 21 | `ResaleClosed` | The event's resale cutoff has passed (`now >= starts_at - resale_cutoff_seconds`) |
-| 22 | `InvalidLottery` | `price < 0`, `winner_count == 0`, `winner_count > entrants.len()`, or the entrant list contains a duplicate address |
-| 23 | `GiftClaimNotFound` | No gift claim is stored for this `ticket_id` |
-| 24 | `GiftClaimExpired` | The gift claim's `expires_at` is in the past |
-| 25 | `InvalidSecret` | `sha256(secret)` does not equal the stored `secret_hash` |
-| 26 | `InvalidExpiry` | `expires_at` is not in the future |
-| 27 | `EmptyBatch` | A batch entry point was called with an empty `ticket_ids` vector |
-| 28 | `BatchTooLarge` | A batch entry point was called with more than `MAX_BATCH_SIZE` (35) ids |
-| 29 | `InvalidPaymentToken` | The supplied address failed the `decimals()` probe, so it is not a SEP-41 token contract |
-| 30 | `NoPendingPaymentToken` | `apply_payment_token` was called with no change pending |
-| 31 | `TimelockNotElapsed` | The current ledger sequence is still below the pending change's `apply_after_ledger` |
-| 32 | `TicketsAlreadyIssued` | `set_event_payment_token` was called after the event issued at least one ticket |
-| 33 | `TransferLimitExceeded` | The ticket has already reached the event's `max_transfers_per_ticket` |
-| 34 | `ResalePriceBelowFloor` | Listing price is below `original_price * min_resale_multiplier_bps / 10000` (only possible when the event set a floor) |
-| 35 | `TierPriceNotSet` | `purchase_primary` was called for a tier the organizer has not priced with `set_tier_price` |
-| 36 | `InvalidMultiplier` | `max_resale_multiplier_bps < 10000` on `create_event` / `create_event_with_options` — a multiplier below face value would cap every resale below face value, making resale impossible |
-| 37 | `EmptyNameOrCategory` | The supplied `name`, `category`, `tier` or `seat` label is an empty string |
-| 38 | `StringTooLong` | The supplied `name` (> `MAX_NAME_LEN`), `category` (> `MAX_CATEGORY_LEN`) or `tier`/`seat` (> `MAX_TICKET_LABEL_LEN`) exceeds its byte budget |
-| 39 | `SelfTransfer` | `transfer_ticket` was called with `from == to` |
-| 40 | `SelfPurchase` | `buy_resale` was called by the ticket's current `owner` (the seller buying their own listing) |
-| 41 | `OrganizerNotApproved` | `create_event` / `create_event_with_options` was called by an organizer the admin has not added with `approve_organizer` (see [ORGANIZER_ALLOWLIST.md](ORGANIZER_ALLOWLIST.md)) |
-| 42 | `ResaleListingActive` | The ticket is listed for resale and cannot be checked in until cancelled |
-| 43 | `InvalidTicketLifecycle` | A stored ticket lifecycle word contains an unknown status code |
-| 44 | `SamePaymentToken` | The proposed payment token is the same as the currently active one |
-| 45 | `MathOverflow` | Arithmetic overflow in financial calculation (resale cap or royalty calculation) |
-| 46 | `NotTransferable` | The event is soulbound (issue #108), so `transfer_ticket`, `transfer_batch`, `create_gift_claim`, `claim_gift`, `list_for_resale` or `buy_resale` cannot move its tickets |
-| 47 | `MetadataUriNotSet` | `token_uri` was called for a ticket issued without a metadata URI (issue #109) |
-| 48 | `TicketNotUsed` | `burn_used_ticket` was called for a ticket that has not been checked in, or that was revoked (issue #113) |
-| 49 | `RetentionPeriodNotElapsed` | `burn_used_ticket` was called before `starts_at + USED_TICKET_RETENTION_SECONDS` (issue #113) |
-| 50 | `SoldOut` | A primary mint would exceed the event's `max_tickets` cap (issue #92) |
-| 51 | `InvalidCapacity` | `set_event_capacity` was given zero, or a cap below `tickets_issued` (issue #92) |
-| 52 | `CheckInWindowClosed` | Check-in was attempted before the window opened or after it closed (issue #95) |
-| 53 | `InvalidCheckInWindow` | `set_event_check_in_window` was given an `ends_at` that is not after `starts_at` (issue #95) |
-| 54 | `TicketExpired` | Check-in or a transfer was attempted at or after the event's `ticket_expires_at` (issue #76) |
-| 55 | `InvalidTicketExpiry` | `set_event_ticket_expiry` was given a time that is not in the future (issue #76) |
-| 56 | `ReentryNotAllowed` | `pass_out` was called on an event with `max_reentries` of zero (issue #78) |
-| 57 | `ReentryLimitReached` | `pass_out` was called after the ticket used all of its re-entries (issue #78) |
-| 58 | `EventCancelled` | The event was cancelled by its organizer, so it can no longer issue, sell or list tickets, and cannot be cancelled again (issue #91) |
-| 59 | `TierSoldOut` | The tier has reached its issuance cap (issue #93) |
-| 60 | `InvalidMaxUses` | `set_ticket_max_uses` was given zero, or a value below the ticket's recorded uses (issue #74) |
-| 61 | `GiftClaimAlreadyExists` | `create_gift_claim` was called while a live claim already exists for the ticket |
-| 62 | `InvalidPlatformFee` | `set_platform_fee_bps` was given a fee above 10_000 bps (issue #104) |
-| 63 | `AuctionNotFound` | `place_bid`, `settle_auction` or `get_auction` was called for a ticket with no open auction (issue #105) |
-| 64 | `AuctionEnded` | `place_bid` was called at or after the auction's `ends_at` (issue #105) |
-| 65 | `AuctionNotEnded` | `settle_auction` was called before the auction's `ends_at` (issue #105) |
-| 66 | `AuctionActive` | A transfer, fixed-price sale, listing, gift or offer was attempted on a ticket whose auction is still running (issue #105) |
-| 67 | `AuctionHasBids` | `cancel_resale` was called on an auction that already has a bid (issue #105) |
-| 68 | `InvalidAuctionEnd` | `start_auction` was given an `ends_at` that is not in the future or falls after the resale cutoff (issue #105) |
-| 69 | `BidTooLow` | A bid is below the reserve or does not beat the highest bid (issue #105) |
-| 70 | `OfferNotFound` | `accept_offer`, `cancel_offer` or `get_offer` was called for a buyer with no open offer on the ticket (issue #106) |
-| 71 | `OfferAlreadyExists` | `make_offer` was called by a buyer who already has an open offer on the ticket (issue #106) |
-| 72 | `NotApproved` | `transfer_from` was called by an address that is not the ticket's approved operator (issue #107) |
-| 73 | `ResaleFundsOutstanding` | `apply_payment_token` was called while resale bids or offers are still held (issues #105, #106) |
-| 74 | `ZoneNotAllowed` | The ticket's tier may not enter the zone being checked in at (issue #80) |
-| 75 | `InvalidZones` | `set_tier_zones` was given more than `MAX_TIER_ZONES` zones, or a zone label is empty or too long (issue #80) |
-| 76 | `SaleNotStarted` | `purchase_primary` was called before the event's configured `sale_start` (issue #94) |
-| 77 | `SaleEnded` | `purchase_primary` was called at or after the event's configured `sale_end` (issue #94) |
-| 78 | `InvalidSaleWindow` | `set_event_sale_window` was given a `sale_end` that is not after `sale_start` (issue #94) |
-| 79 | `ContractPaused` | The admin has paused the contract; state-changing entry points are rejected until `unpause` |
-| 80 | `AlreadyRefunded` | The ticket has already been refunded through `refund_primary`, or a terminal-status ticket was mutated |
-| 81 | `RefundWindowExpired` | `refund_primary` was called after the event's refund window elapsed, or the event set no refund window |
-| 82 | `NotOnAllowlist` | A presale purchase was attempted by a wallet that is not on the event's allowlist |
-| 83 | `PurchaseLimitExceeded` | A primary purchase would exceed the event's optional `max_per_wallet` cap |
-| 91 | `TicketNotYetValid` | Check-in was attempted before the ticket's `valid_from` (issue #72) |
-| 92 | `TicketValidityEnded` | Check-in was attempted after the ticket's `valid_until` (issue #72) |
-| 93 | `InvalidValidityWindow` | `set_ticket_validity` was given a `valid_until` that is not after `valid_from` (issue #72) |
-| 94 | `InvalidPerks` | `set_tier_perks` was given more than `MAX_TIER_PERKS` perks, or a perk label is empty or longer than `MAX_PERK_LEN` (issue #68) |
-| 95 | `InvalidEventMetadata` | `set_event_metadata` was given an empty or over-long key or value (issue #70) |
-| 96 | `EventMetadataFull` | `set_event_metadata` would add a key to an event that already holds `MAX_EVENT_METADATA_ENTRIES` entries (issue #70) |
+| Code | Variant                     | Meaning                                                                                                                                                                               |
+| ---- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | `AlreadyInitialized`        | `initialize` was called on a contract that already has an admin                                                                                                                       |
+| 2    | `NotInitialized`            | Contract state was read before `initialize` ran (`Admin`, `PaymentToken` or `TokenDecimals` is absent from instance storage)                                                          |
+| 3    | `EventNotFound`             | No event is stored under `event_id`                                                                                                                                                   |
+| 4    | `EventAlreadyExists`        | `create_event` / `create_event_with_options` was called with an `event_id` that is already taken                                                                                      |
+| 5    | `TicketNotFound`            | No ticket is stored under `ticket_id`                                                                                                                                                 |
+| 6    | `NotOrganizer`              | The signing address is not the `organizer` of the ticket's event                                                                                                                      |
+| 7    | `NotOwner`                  | The signing address is not the ticket's current `owner`                                                                                                                               |
+| 8    | `AlreadyUsed`               | The ticket has already been checked in; the action is not allowed after check-in                                                                                                      |
+| 9    | `Revoked`                   | The ticket was revoked by the organizer; revoked tickets are permanently dead                                                                                                         |
+| 10   | `NotForResale`              | The ticket's status is not `Resale` (cancelling or buying a listing that does not exist)                                                                                              |
+| 11   | `ResalePriceExceedsCap`     | Listing price is above `original_price * max_resale_multiplier_bps / 10000`                                                                                                           |
+| 12   | `InvalidPrice`              | `price` is negative on `issue_ticket` / `set_tier_price`, or `<= 0` on `list_for_resale`                                                                                              |
+| 13   | `InvalidRoyalty`            | `royalty_bps > 10000` (more than 100%)                                                                                                                                                |
+| 14   | `EscrowNotEnabled`          | `release_escrow` was called for an event that never called `enable_escrow`                                                                                                            |
+| 15   | `EventNotEnded`             | The current ledger sequence is still below `event.escrow_release_ledger`                                                                                                              |
+| 16   | `PurchaseTooSoon`           | The buyer is inside the admin-configured primary-purchase throttle window                                                                                                             |
+| 17   | `NotAdmin`                  | The signing address is not the contract admin set at `initialize`                                                                                                                     |
+| 18   | `EventAlreadyStarted`       | `enable_escrow` was called after the event already issued at least one ticket                                                                                                         |
+| 19   | `InvalidEventTime`          | `starts_at` is not strictly in the future (`starts_at <= ledger timestamp`)                                                                                                           |
+| 20   | `TransfersFrozen`           | The event's transfer freeze window has started (`now >= starts_at - transfer_freeze_seconds`)                                                                                         |
+| 21   | `ResaleClosed`              | The event's resale cutoff has passed (`now >= starts_at - resale_cutoff_seconds`)                                                                                                     |
+| 22   | `InvalidLottery`            | `price < 0`, `winner_count == 0`, `winner_count > entrants.len()`, or the entrant list contains a duplicate address                                                                   |
+| 23   | `GiftClaimNotFound`         | No gift claim is stored for this `ticket_id`                                                                                                                                          |
+| 24   | `GiftClaimExpired`          | The gift claim's `expires_at` is in the past                                                                                                                                          |
+| 25   | `InvalidSecret`             | `sha256(secret)` does not equal the stored `secret_hash`                                                                                                                              |
+| 26   | `InvalidExpiry`             | `expires_at` is not in the future                                                                                                                                                     |
+| 27   | `EmptyBatch`                | A batch entry point was called with an empty `ticket_ids` vector                                                                                                                      |
+| 28   | `BatchTooLarge`             | A batch entry point was called with more than `MAX_BATCH_SIZE` (35) ids                                                                                                               |
+| 29   | `InvalidPaymentToken`       | The supplied address failed the `decimals()` probe, so it is not a SEP-41 token contract                                                                                              |
+| 30   | `NoPendingPaymentToken`     | `apply_payment_token` was called with no change pending                                                                                                                               |
+| 31   | `TimelockNotElapsed`        | The current ledger sequence is still below the pending change's `apply_after_ledger`                                                                                                  |
+| 32   | `TicketsAlreadyIssued`      | `set_event_payment_token` was called after the event issued at least one ticket                                                                                                       |
+| 33   | `TransferLimitExceeded`     | The ticket has already reached the event's `max_transfers_per_ticket`                                                                                                                 |
+| 34   | `ResalePriceBelowFloor`     | Listing price is below `original_price * min_resale_multiplier_bps / 10000` (only possible when the event set a floor)                                                                |
+| 35   | `TierPriceNotSet`           | `purchase_primary` was called for a tier the organizer has not priced with `set_tier_price`                                                                                           |
+| 36   | `InvalidMultiplier`         | `max_resale_multiplier_bps < 10000` on `create_event` / `create_event_with_options` — a multiplier below face value would cap every resale below face value, making resale impossible |
+| 37   | `EmptyNameOrCategory`       | The supplied `name`, `category`, `tier` or `seat` label is an empty string                                                                                                            |
+| 38   | `StringTooLong`             | The supplied `name` (> `MAX_NAME_LEN`), `category` (> `MAX_CATEGORY_LEN`) or `tier`/`seat` (> `MAX_TICKET_LABEL_LEN`) exceeds its byte budget                                         |
+| 39   | `SelfTransfer`              | `transfer_ticket` was called with `from == to`                                                                                                                                        |
+| 40   | `SelfPurchase`              | `buy_resale` was called by the ticket's current `owner` (the seller buying their own listing)                                                                                         |
+| 41   | `OrganizerNotApproved`      | `create_event` / `create_event_with_options` was called by an organizer the admin has not added with `approve_organizer` (see [ORGANIZER_ALLOWLIST.md](ORGANIZER_ALLOWLIST.md))       |
+| 42   | `ResaleListingActive`       | The ticket is listed for resale and cannot be checked in until cancelled                                                                                                              |
+| 43   | `InvalidTicketLifecycle`    | A stored ticket lifecycle word contains an unknown status code                                                                                                                        |
+| 44   | `SamePaymentToken`          | The proposed payment token is the same as the currently active one                                                                                                                    |
+| 45   | `MathOverflow`              | Arithmetic overflow in financial calculation (resale cap or royalty calculation)                                                                                                      |
+| 46   | `NotTransferable`           | The event is soulbound (issue #108), so `transfer_ticket`, `transfer_batch`, `create_gift_claim`, `claim_gift`, `list_for_resale` or `buy_resale` cannot move its tickets             |
+| 47   | `MetadataUriNotSet`         | `token_uri` was called for a ticket issued without a metadata URI (issue #109)                                                                                                        |
+| 48   | `TicketNotUsed`             | `burn_used_ticket` was called for a ticket that has not been checked in, or that was revoked (issue #113)                                                                             |
+| 49   | `RetentionPeriodNotElapsed` | `burn_used_ticket` was called before `starts_at + USED_TICKET_RETENTION_SECONDS` (issue #113)                                                                                         |
+| 50   | `SoldOut`                   | A primary mint would exceed the event's `max_tickets` cap (issue #92)                                                                                                                 |
+| 51   | `InvalidCapacity`           | `set_event_capacity` was given zero, or a cap below `tickets_issued` (issue #92)                                                                                                      |
+| 52   | `CheckInWindowClosed`       | Check-in was attempted before the window opened or after it closed (issue #95)                                                                                                        |
+| 53   | `InvalidCheckInWindow`      | `set_event_check_in_window` was given an `ends_at` that is not after `starts_at` (issue #95)                                                                                          |
+| 54   | `TicketExpired`             | Check-in or a transfer was attempted at or after the event's `ticket_expires_at` (issue #76)                                                                                          |
+| 55   | `InvalidTicketExpiry`       | `set_event_ticket_expiry` was given a time that is not in the future (issue #76)                                                                                                      |
+| 56   | `ReentryNotAllowed`         | `pass_out` was called on an event with `max_reentries` of zero (issue #78)                                                                                                            |
+| 57   | `ReentryLimitReached`       | `pass_out` was called after the ticket used all of its re-entries (issue #78)                                                                                                         |
+| 58   | `EventCancelled`            | The event was cancelled by its organizer, so it can no longer issue, sell or list tickets, and cannot be cancelled again (issue #91)                                                  |
+| 59   | `TierSoldOut`               | The tier has reached its issuance cap (issue #93)                                                                                                                                     |
+| 60   | `InvalidMaxUses`            | `set_ticket_max_uses` was given zero, or a value below the ticket's recorded uses (issue #74)                                                                                         |
+| 61   | `GiftClaimAlreadyExists`    | `create_gift_claim` was called while a live claim already exists for the ticket                                                                                                       |
+| 62   | `InvalidPlatformFee`        | `set_platform_fee_bps` was given a fee above 10_000 bps (issue #104)                                                                                                                  |
+| 63   | `AuctionNotFound`           | `place_bid`, `settle_auction` or `get_auction` was called for a ticket with no open auction (issue #105)                                                                              |
+| 64   | `AuctionEnded`              | `place_bid` was called at or after the auction's `ends_at` (issue #105)                                                                                                               |
+| 65   | `AuctionNotEnded`           | `settle_auction` was called before the auction's `ends_at` (issue #105)                                                                                                               |
+| 66   | `AuctionActive`             | A transfer, fixed-price sale, listing, gift or offer was attempted on a ticket whose auction is still running (issue #105)                                                            |
+| 67   | `AuctionHasBids`            | `cancel_resale` was called on an auction that already has a bid (issue #105)                                                                                                          |
+| 68   | `InvalidAuctionEnd`         | `start_auction` was given an `ends_at` that is not in the future or falls after the resale cutoff (issue #105)                                                                        |
+| 69   | `BidTooLow`                 | A bid is below the reserve or does not beat the highest bid (issue #105)                                                                                                              |
+| 70   | `OfferNotFound`             | `accept_offer`, `cancel_offer` or `get_offer` was called for a buyer with no open offer on the ticket (issue #106)                                                                    |
+| 71   | `OfferAlreadyExists`        | `make_offer` was called by a buyer who already has an open offer on the ticket (issue #106)                                                                                           |
+| 72   | `NotApproved`               | `transfer_from` was called by an address that is not the ticket's approved operator (issue #107)                                                                                      |
+| 73   | `ResaleFundsOutstanding`    | `apply_payment_token` was called while resale bids or offers are still held (issues #105, #106)                                                                                       |
+| 74   | `ZoneNotAllowed`            | The ticket's tier may not enter the zone being checked in at (issue #80)                                                                                                              |
+| 75   | `InvalidZones`              | `set_tier_zones` was given more than `MAX_TIER_ZONES` zones, or a zone label is empty or too long (issue #80)                                                                         |
+| 76   | `SaleNotStarted`            | `purchase_primary` was called before the event's configured `sale_start` (issue #94)                                                                                                  |
+| 77   | `SaleEnded`                 | `purchase_primary` was called at or after the event's configured `sale_end` (issue #94)                                                                                               |
+| 78   | `InvalidSaleWindow`         | `set_event_sale_window` was given a `sale_end` that is not after `sale_start` (issue #94)                                                                                             |
+| 79   | `ContractPaused`            | The admin has paused the contract; state-changing entry points are rejected until `unpause`                                                                                           |
+| 80   | `AlreadyRefunded`           | The ticket has already been refunded through `refund_primary`, or a terminal-status ticket was mutated                                                                                |
+| 81   | `RefundWindowExpired`       | `refund_primary` was called after the event's refund window elapsed, or the event set no refund window                                                                                |
+| 82   | `NotOnAllowlist`            | A presale purchase was attempted by a wallet that is not on the event's allowlist                                                                                                     |
+| 83   | `PurchaseLimitExceeded`     | A primary purchase would exceed the event's optional `max_per_wallet` cap                                                                                                             |
+| 91   | `TicketNotYetValid`         | Check-in was attempted before the ticket's `valid_from` (issue #72)                                                                                                                   |
+| 92   | `TicketValidityEnded`       | Check-in was attempted after the ticket's `valid_until` (issue #72)                                                                                                                   |
+| 93   | `InvalidValidityWindow`     | `set_ticket_validity` was given a `valid_until` that is not after `valid_from` (issue #72)                                                                                            |
+| 94   | `InvalidPerks`              | `set_tier_perks` was given more than `MAX_TIER_PERKS` perks, or a perk label is empty or longer than `MAX_PERK_LEN` (issue #68)                                                       |
+| 95   | `InvalidEventMetadata`      | `set_event_metadata` was given an empty or over-long key or value (issue #70)                                                                                                         |
+| 96   | `EventMetadataFull`         | `set_event_metadata` would add a key to an event that already holds `MAX_EVENT_METADATA_ENTRIES` entries (issue #70)                                                                  |
+| 97   | `NoPendingAdmin`            | `accept_admin` was called when no admin transfer is pending (issue #100)                                                                                                              |
+| 98   | `NotPendingAdmin`           | `accept_admin` was called by an address that is not the nominee in the pending admin transfer (issue #100)                                                                            |
 
 ### Grouping
 
-| Group | Codes | Shared property |
-|---|---|---|
-| Initialization & ordering | 1, 2, 4, 18, 30, 31, 32 | Initialization, idempotency and sequencing constraints — rejected without touching ticket state |
-| Lookup | 3, 5, 47 | The referenced record does not exist in persistent storage |
-| Authorization | 6, 7, 17, 41 | The signer is authenticated but lacks the required role for the record |
-| Ticket state machine | 8, 9, 10, 33, 39, 40, 42, 43 | The ticket's `status` or transfer counter forbids the action, or the transfer/purchase is a no-op on the current owner |
-| Policy, pricing & timing | 11, 12, 13, 19, 20, 21, 22, 34, 35, 36, 46 | Organizer-configured or time-based policy rejects the arguments |
-| Gift claims | 23, 24, 25, 26 | The claim link is missing, expired, or the preimage does not match |
-| Batching | 27, 28 | `Vec` arity is outside `1..=MAX_BATCH_SIZE` |
-| Input bounds | 37, 38 | A `name`/`category`/`tier`/`seat` label is empty or longer than its byte budget |
-| Escrow, throttle & token config | 14, 15, 16, 29, 44 | Escrow release, purchase throttle, and payment-token validation |
+| Group                           | Codes                                      | Shared property                                                                                                        |
+| ------------------------------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| Initialization & ordering       | 1, 2, 4, 18, 30, 31, 32                    | Initialization, idempotency and sequencing constraints — rejected without touching ticket state                        |
+| Lookup                          | 3, 5, 47                                   | The referenced record does not exist in persistent storage                                                             |
+| Authorization                   | 6, 7, 17, 41                               | The signer is authenticated but lacks the required role for the record                                                 |
+| Ticket state machine            | 8, 9, 10, 33, 39, 40, 42, 43               | The ticket's `status` or transfer counter forbids the action, or the transfer/purchase is a no-op on the current owner |
+| Policy, pricing & timing        | 11, 12, 13, 19, 20, 21, 22, 34, 35, 36, 46 | Organizer-configured or time-based policy rejects the arguments                                                        |
+| Gift claims                     | 23, 24, 25, 26                             | The claim link is missing, expired, or the preimage does not match                                                     |
+| Batching                        | 27, 28                                     | `Vec` arity is outside `1..=MAX_BATCH_SIZE`                                                                            |
+| Input bounds                    | 37, 38                                     | A `name`/`category`/`tier`/`seat` label is empty or longer than its byte budget                                        |
+| Escrow, throttle & token config | 14, 15, 16, 29, 44                         | Escrow release, purchase throttle, and payment-token validation                                                        |
 
 ## Which entry points return which error
 
@@ -140,57 +142,57 @@ Two views of the same data. The second table lists the codes each of the
 appear on most of them, so you can see at a glance which entry points
 are reachable from a "not found" or a role check.
 
-| Code | Reachable from |
-|---|---|
-| 2 | every entry point that reads contract-wide configuration: `propose_payment_token`, `apply_payment_token`, `set_purchase_throttle`, `event_payment_token`, `purchase_primary`, `buy_resale`, `release_escrow`, `revoke_with_refund`, `token_decimals` |
-| 3 | every entry point that loads an existing event: `event_payment_token`, `allocate_lottery`, `enable_escrow`, `set_event_payment_token`, `issue_ticket`, `purchase_primary`, `release_escrow`, `transfer_ticket`, `transfer_batch`, `claim_gift`, `check_in`, `check_in_batch`, `revoke_ticket`, `set_seat`, `revoke_with_refund`, `revoke_batch`, `list_for_resale`, `buy_resale` |
-| 5 | every entry point that loads an existing ticket: `transfer_ticket`, `transfer_batch`, `create_gift_claim`, `claim_gift`, `get_ticket`, `verify_ticket` (deprecated alias), `verify_tickets`, `check_in`, `check_in_batch`, `revoke_ticket`, `set_seat`, `revoke_with_refund`, `revoke_batch`, `list_for_resale`, `cancel_resale`, `buy_resale` |
-| 6 | every organizer-authorized entry point |
-| 7 | every owner-authorized entry point |
-| 8 | `transfer_ticket`, `transfer_batch`, `create_gift_claim`, `claim_gift`, `check_in`, `check_in_batch`, `revoke_with_refund` |
-| 9 | `transfer_ticket`, `transfer_batch`, `create_gift_claim`, `claim_gift`, `check_in`, `check_in_batch`, `set_seat`, `revoke_ticket`, `revoke_with_refund`, `revoke_batch` |
+| Code | Reachable from                                                                                                                                                                                                                                                                                                                                                                   |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2    | every entry point that reads contract-wide configuration: `propose_payment_token`, `apply_payment_token`, `set_purchase_throttle`, `event_payment_token`, `purchase_primary`, `buy_resale`, `release_escrow`, `revoke_with_refund`, `token_decimals`                                                                                                                             |
+| 3    | every entry point that loads an existing event: `event_payment_token`, `allocate_lottery`, `enable_escrow`, `set_event_payment_token`, `issue_ticket`, `purchase_primary`, `release_escrow`, `transfer_ticket`, `transfer_batch`, `claim_gift`, `check_in`, `check_in_batch`, `revoke_ticket`, `set_seat`, `revoke_with_refund`, `revoke_batch`, `list_for_resale`, `buy_resale` |
+| 5    | every entry point that loads an existing ticket: `transfer_ticket`, `transfer_batch`, `create_gift_claim`, `claim_gift`, `get_ticket`, `verify_ticket` (deprecated alias), `verify_tickets`, `check_in`, `check_in_batch`, `revoke_ticket`, `set_seat`, `revoke_with_refund`, `revoke_batch`, `list_for_resale`, `cancel_resale`, `buy_resale`                                   |
+| 6    | every organizer-authorized entry point                                                                                                                                                                                                                                                                                                                                           |
+| 7    | every owner-authorized entry point                                                                                                                                                                                                                                                                                                                                               |
+| 8    | `transfer_ticket`, `transfer_batch`, `create_gift_claim`, `claim_gift`, `check_in`, `check_in_batch`, `revoke_with_refund`                                                                                                                                                                                                                                                       |
+| 9    | `transfer_ticket`, `transfer_batch`, `create_gift_claim`, `claim_gift`, `check_in`, `check_in_batch`, `set_seat`, `revoke_ticket`, `revoke_with_refund`, `revoke_batch`                                                                                                                                                                                                          |
 
-| Entry point | Error codes it can return |
-|---|---|
-| `initialize` | 1, 29 |
-| `propose_payment_token` | 2, 17, 29 |
-| `apply_payment_token` | 2, 17, 29, 30, 31 |
-| `create_event` | 4, 13, 19 |
-| `create_event_with_options` | 4, 13, 19 |
-| `allocate_lottery` | 3, 6, 22 |
-| `enable_escrow` | 3, 6, 18 |
-| `set_event_payment_token` | 3, 6, 29, 32 |
-| `event_payment_token` | 2, 3 |
-| `issue_ticket` | 3, 6, 12 |
-| `issue_ticket_with_metadata` | 3, 6, 12, 37, 38 |
-| `set_event_transferable` | 3, 6, 32 |
-| `purchase_primary` | 2, 3, 16, 35 |
-| `release_escrow` | 2, 3, 6, 14, 15 |
-| `set_purchase_throttle` | 2, 17 |
-| `transfer_ticket` | 3, 5, 7, 8, 9, 20, 33, 46 |
-| `transfer_batch` | 3, 5, 7, 8, 9, 20, 27, 28, 33, 46 |
-| `create_gift_claim` | 3, 5, 7, 8, 9, 26, 46 |
-| `claim_gift` | 3, 5, 7, 8, 9, 20, 23, 24, 25, 33, 46 |
-| `get_ticket` / `verify_ticket` (deprecated) | 5 |
-| `token_uri` | 5, 47 |
-| `owner_of` | 5 |
-| `balance`, `list_organizer_events` | none |
-| `is_ticket_valid` | 2, 5, 43 |
-| `is_valid` | none (lookup errors return `false`) |
-| `verify_tickets` | 5, 27, 28 |
-| `check_in` | 3, 5, 6, 8, 9, 42 |
-| `check_in_batch` | 3, 5, 6, 8, 9, 27, 28, 42 |
-| `revoke_ticket` | 3, 5, 6, 9 |
-| `set_seat` | 3, 5, 6, 9 |
-| `revoke_with_refund` | 2, 3, 5, 6, 8, 9 |
-| `revoke_batch` | 3, 5, 6, 9, 27, 28 |
-| `list_for_resale` | 3, 5, 7, 8, 9, 11, 12, 21, 34, 46 |
-| `cancel_resale` | 5, 7, 10 |
-| `buy_resale` | 2, 3, 5, 10, 21, 33, 46 |
-| `burn_used_ticket` | 3, 5, 6, 48, 49 |
-| `get_event` | 3 |
-| `get_ticket` | 5 |
-| `token_decimals` | 2 |
+| Entry point                                 | Error codes it can return             |
+| ------------------------------------------- | ------------------------------------- |
+| `initialize`                                | 1, 29                                 |
+| `propose_payment_token`                     | 2, 17, 29                             |
+| `apply_payment_token`                       | 2, 17, 29, 30, 31                     |
+| `create_event`                              | 4, 13, 19                             |
+| `create_event_with_options`                 | 4, 13, 19                             |
+| `allocate_lottery`                          | 3, 6, 22                              |
+| `enable_escrow`                             | 3, 6, 18                              |
+| `set_event_payment_token`                   | 3, 6, 29, 32                          |
+| `event_payment_token`                       | 2, 3                                  |
+| `issue_ticket`                              | 3, 6, 12                              |
+| `issue_ticket_with_metadata`                | 3, 6, 12, 37, 38                      |
+| `set_event_transferable`                    | 3, 6, 32                              |
+| `purchase_primary`                          | 2, 3, 16, 35                          |
+| `release_escrow`                            | 2, 3, 6, 14, 15                       |
+| `set_purchase_throttle`                     | 2, 17                                 |
+| `transfer_ticket`                           | 3, 5, 7, 8, 9, 20, 33, 46             |
+| `transfer_batch`                            | 3, 5, 7, 8, 9, 20, 27, 28, 33, 46     |
+| `create_gift_claim`                         | 3, 5, 7, 8, 9, 26, 46                 |
+| `claim_gift`                                | 3, 5, 7, 8, 9, 20, 23, 24, 25, 33, 46 |
+| `get_ticket` / `verify_ticket` (deprecated) | 5                                     |
+| `token_uri`                                 | 5, 47                                 |
+| `owner_of`                                  | 5                                     |
+| `balance`, `list_organizer_events`          | none                                  |
+| `is_ticket_valid`                           | 2, 5, 43                              |
+| `is_valid`                                  | none (lookup errors return `false`)   |
+| `verify_tickets`                            | 5, 27, 28                             |
+| `check_in`                                  | 3, 5, 6, 8, 9, 42                     |
+| `check_in_batch`                            | 3, 5, 6, 8, 9, 27, 28, 42             |
+| `revoke_ticket`                             | 3, 5, 6, 9                            |
+| `set_seat`                                  | 3, 5, 6, 9                            |
+| `revoke_with_refund`                        | 2, 3, 5, 6, 8, 9                      |
+| `revoke_batch`                              | 3, 5, 6, 9, 27, 28                    |
+| `list_for_resale`                           | 3, 5, 7, 8, 9, 11, 12, 21, 34, 46     |
+| `cancel_resale`                             | 5, 7, 10                              |
+| `buy_resale`                                | 2, 3, 5, 10, 21, 33, 46               |
+| `burn_used_ticket`                          | 3, 5, 6, 48, 49                       |
+| `get_event`                                 | 3                                     |
+| `get_ticket`                                | 5                                     |
+| `token_decimals`                            | 2                                     |
 
 In batch entry points (`transfer_batch`, `check_in_batch`, `revoke_batch`,
 `verify_tickets`) the per-item errors are returned for the **first**
@@ -205,11 +207,11 @@ contract error is therefore safe to surface and retry after fixing the
 inputs; the distinction that matters for a backend is whether the
 condition is **permanent** or **time/balance dependent**:
 
-| Class | Codes | Retry strategy |
-|---|---|---|
-| Permanent — fix the request | 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 17, 19, 22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 50, 51, 53, 54, 55, 56, 57, 62, 63, 67, 68, 69, 70, 71, 72 | Do not retry automatically; return a 4xx-equivalent to the caller |
-| Time-dependent — retry after waiting | 15, 16, 20, 21, 31, 52, 64, 65, 66, 73 | Retry when the relevant timestamp or ledger sequence has passed, or once the auction or offer has settled |
-| Transient operational | 1, 2, 14, 18 | Deployment or configuration error; retrying the same arguments will not help |
+| Class                                | Codes                                                                                                                                                                                                       | Retry strategy                                                                                            |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Permanent — fix the request          | 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 17, 19, 22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 50, 51, 53, 54, 55, 56, 57, 62, 63, 67, 68, 69, 70, 71, 72 | Do not retry automatically; return a 4xx-equivalent to the caller                                         |
+| Time-dependent — retry after waiting | 15, 16, 20, 21, 31, 52, 64, 65, 66, 73                                                                                                                                                                      | Retry when the relevant timestamp or ledger sequence has passed, or once the auction or offer has settled |
+| Transient operational                | 1, 2, 14, 18                                                                                                                                                                                                | Deployment or configuration error; retrying the same arguments will not help                              |
 
 Codes 14 and 18 are listed as operational rather than permanent because
 they are usually symptoms of a caller that skipped a setup step
@@ -274,12 +276,12 @@ import { scValToNative } from "@stellar/stellar-sdk";
 
 // `retval` is the return value of a failed simulation's result entry.
 function contractErrorCode(retval) {
-  if (!retval) return undefined;                 // host-level failure: no code
+  if (!retval) return undefined; // host-level failure: no code
   let decoded;
   try {
     decoded = scValToNative(retval);
   } catch {
-    return undefined;                           // not convertible: host/auth/token error
+    return undefined; // not convertible: host/auth/token error
   }
   if (typeof decoded === "number") return decoded;
   // Depending on SDK version the error decodes to a wrapper rather than a
@@ -294,7 +296,7 @@ against every code in this document and looks like a decoder bug.
 
 In Rust, generated bindings give you the `Error` enum directly, so
 match on variants rather than on integers. Prefer matching the
-*variant* over hardcoding integers in application code; the numeric
+_variant_ over hardcoding integers in application code; the numeric
 codes below are the wire contract and are what appears in logs.
 
 ## Stability

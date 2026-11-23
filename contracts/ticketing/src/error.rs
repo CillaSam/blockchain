@@ -192,4 +192,8 @@ pub enum Error {
     InvalidEventMetadata = 95,
     /// The event already holds `MAX_EVENT_METADATA_ENTRIES` metadata entries (issue #70).
     EventMetadataFull = 96,
+    /// There is no pending admin transfer proposal (issue #100).
+    NoPendingAdmin = 97,
+    /// The caller is not the nominee in the pending admin transfer (issue #100).
+    NotPendingAdmin = 98,
 }
