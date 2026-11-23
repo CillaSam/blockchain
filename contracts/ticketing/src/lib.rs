@@ -1101,10 +1101,7 @@ impl TicketingContract {
     /// Platform fee in basis points taken from each primary sale (issue #104).
     /// Zero when no fee has been set.
     pub fn platform_fee_bps(env: Env) -> u32 {
-        env.storage()
-            .instance()
-            .get(&DataKey::PlatformFeeBps)
-            .unwrap_or(0)
+        Self::get_platform_fee_bps(&env)
     }
 
     /// Direct, non-marketplace transfer (gift, family member, etc). Publishes
@@ -2734,11 +2731,7 @@ impl TicketingContract {
             &buyer,
             &offer.amount,
         );
-        OfferCancelled {
-            ticket_id,
-            buyer,
-        }
-        .publish(&env);
+        OfferCancelled { ticket_id, buyer }.publish(&env);
         Ok(())
     }
 
@@ -3605,6 +3598,7 @@ impl TicketingContract {
     /// # Errors
     ///
     /// Returns `Error::NotAdmin` when `admin` is not the stored admin.
+    #[allow(deprecated)]
     pub fn upgrade(env: Env, admin: Address, new_wasm_hash: BytesN<32>) -> Result<(), Error> {
         Self::extend_instance_ttl(&env);
         Self::require_admin(&env, &admin)?;
