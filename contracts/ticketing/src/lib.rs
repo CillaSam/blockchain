@@ -703,8 +703,13 @@ impl TicketingContract {
         organizer.require_auth();
         let mut ticket = Self::get_ticket_inner(&env, ticket_id)?;
         Self::require_organizer(&env, ticket.event_id, &organizer)?;
+        // Issue #441: Reject terminal statuses (Revoked and Refunded) to prevent
+        // resurrection of tickets that should stay dead.
         if ticket.status == TicketStatus::Revoked {
             return Err(Error::Revoked);
+        }
+        if ticket.status == TicketStatus::Refunded {
+            return Err(Error::AlreadyRefunded);
         }
         let used = Self::used_count_of(&env, ticket_id);
         if max_uses == 0 || max_uses < used {
@@ -995,6 +1000,13 @@ impl TicketingContract {
             }
         }
         let ticket_id = Self::mint(&env, event_id, buyer.clone(), tier, seat, price);
+        // Mark this ticket as acquired through on-chain primary sale (issue #439).
+        // Only tickets with this marker can be refunded on-chain.
+        let key = DataKey::PrimarySaleTicket(ticket_id);
+        env.storage().persistent().set(&key, &true);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, LEDGER_THRESHOLD, LEDGER_BUMP);
         Self::increment_tickets_issued(&env, event_id, 1);
         Self::record_purchase(&env, &buyer);
         // The wallet counter is what `enforce_wallet_limit` compares against
@@ -3812,6 +3824,29 @@ impl TicketingContract {
             return Err(Error::AlreadyRefunded);
         }
         Self::require_not_terminal(&ticket)?;
+        
+        // Issue #438: Only allow refunds while the ticket has never been transferred.
+        // A transferee or resale buyer should not be able to claim the original price.
+        if ticket.transfers > 0 {
+            return Err(Error::NotOwner);
+        }
+        
+        // Issue #439: Only refund tickets acquired through on-chain primary sale.
+        // Tickets issued off-chain or as comps were not paid on-chain, so they
+        // should not receive on-chain refunds.
+        let primary_sale_key = DataKey::PrimarySaleTicket(ticket_id);
+        if !env.storage().persistent().has(&primary_sale_key) {
+            return Err(Error::NotOwner);
+        }
+        
+        // Issue #440: Reject refunds for tickets with running auctions.
+        // The auction holds bids in escrow and would settle against a refunded ticket.
+        Self::ensure_no_auction(&env, ticket_id)?;
+        
+        // Issue #440: Require the listing to be cancelled first if the ticket
+        // is listed for resale (which includes open offers).
+        Self::require_not_terminal(&ticket)?;
+        
         let mut event = Self::get_event_inner(&env, ticket.event_id)?;
         if let Some(refund_window) = event.refund_window_seconds {
             let refund_deadline = ticket.purchased_at.saturating_add(refund_window);
