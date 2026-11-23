@@ -438,6 +438,10 @@ pub enum DataKey {
     /// Pending admin transfer nominee (issue #100).
     /// The address nominated by the current admin to become the new admin.
     PendingAdmin,
+    /// Marks a ticket as acquired through on-chain primary sale (issue #439).
+    /// Only tickets with this marker set can be refunded on-chain via
+    /// `refund_primary`. Absent for tickets issued off-chain or as comps.
+    PrimarySaleTicket(u64),
 }
 
 // Keep the persistent encoding beside the public and stored ticket types.
