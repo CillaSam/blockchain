@@ -3583,7 +3583,7 @@ impl TicketingContract {
         Self::extend_instance_ttl(&env);
         Self::require_admin(&env, &admin)?;
         env.deployer()
-            .update_current_contract(ContractExecutable::Wasm(new_wasm_hash.clone()));
+            .update_current_contract_wasm(new_wasm_hash.clone());
         ContractUpgraded {
             admin,
             new_wasm_hash,
