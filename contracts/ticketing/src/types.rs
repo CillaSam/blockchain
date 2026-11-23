@@ -439,6 +439,10 @@ pub enum DataKey {
     /// ledger seconds (issue #72). Absent means the ticket is valid whenever
     /// the event allows check-in.
     TicketValidity(u64),
+    /// Marks a ticket as acquired through on-chain primary sale (issue #439).
+    /// Only tickets with this marker set can be refunded on-chain via
+    /// `refund_primary`. Absent for tickets issued off-chain or as comps.
+    PrimarySaleTicket(u64),
 }
 
 // Keep the persistent encoding beside the public and stored ticket types.

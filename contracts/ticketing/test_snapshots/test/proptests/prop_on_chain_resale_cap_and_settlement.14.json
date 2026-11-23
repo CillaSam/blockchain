@@ -106,7 +106,7 @@
                         "symbol": "max_resale_multiplier_bps"
                       },
                       "val": {
-                        "u32": 11092
+                        "u32": 17884
                       }
                     },
                     {
@@ -148,7 +148,7 @@
                         "symbol": "royalty_bps"
                       },
                       "val": {
-                        "u32": 1857
+                        "u32": 1042
                       }
                     },
                     {
@@ -201,7 +201,7 @@
                   "string": "1"
                 },
                 {
-                  "i128": "2689"
+                  "i128": "4387"
                 }
               ]
             }
@@ -227,7 +227,7 @@
                   "u64": "0"
                 },
                 {
-                  "i128": "2982"
+                  "i128": "7845"
                 }
               ]
             }
@@ -250,7 +250,7 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOLZM"
                 },
                 {
-                  "i128": "2982"
+                  "i128": "7845"
                 }
               ]
             }
@@ -293,7 +293,7 @@
                       "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
                     },
                     {
-                      "i128": "553"
+                      "i128": "817"
                     }
                   ]
                 }
@@ -313,7 +313,7 @@
                       "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4"
                     },
                     {
-                      "i128": "2429"
+                      "i128": "7028"
                     }
                   ]
                 }
@@ -597,7 +597,7 @@
                       "symbol": "max_resale_multiplier_bps"
                     },
                     "val": {
-                      "u32": 11092
+                      "u32": 17884
                     }
                   },
                   {
@@ -671,7 +671,7 @@
                       "symbol": "royalty_bps"
                     },
                     "val": {
-                      "u32": 1857
+                      "u32": 1042
                     }
                   },
                   {
@@ -993,7 +993,7 @@
                       "symbol": "original_price"
                     },
                     "val": {
-                      "i128": "2689"
+                      "i128": "4387"
                     }
                   },
                   {
@@ -1159,6 +1159,18 @@
                       "key": {
                         "vec": [
                           {
+                            "symbol": "MaxRoyaltyBps"
+                          }
+                        ]
+                      },
+                      "val": {
+                        "u32": 1042
+                      }
+                    },
+                    {
+                      "key": {
+                        "vec": [
+                          {
                             "symbol": "NextTicketId"
                           }
                         ]
@@ -1265,7 +1277,7 @@
                       "symbol": "amount"
                     },
                     "val": {
-                      "i128": "553"
+                      "i128": "817"
                     }
                   },
                   {
@@ -1317,7 +1329,7 @@
                       "symbol": "amount"
                     },
                     "val": {
-                      "i128": "2429"
+                      "i128": "7028"
                     }
                   },
                   {

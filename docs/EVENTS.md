@@ -101,6 +101,67 @@ Emitted by `buy_resale` after ownership and the royalty split are settled
 Resale purchases also publish `TicketResold`, so marketplace indexers do not
 need to derive the price or royalty from token transfers.
 
+## `AuctionStarted`
+
+Emitted when an auction starts on a ticket (issue #105).
+
+| Field           | Type      | Notes                                |
+| --------------- | --------- | ------------------------------------ |
+| `ticket_id`     | `u64`     | topic                                |
+| `seller`        | `Address` | Owner who started the auction        |
+| `reserve_price` | `i128`    | Minimum accepted bid                 |
+| `ends_at`       | `u64`     | Ledger timestamp when bidding closes |
+
+## `BidPlaced`
+
+Emitted when a bid is placed on an auctioned ticket (issue #105).
+
+| Field       | Type      | Notes                   |
+| ----------- | --------- | ----------------------- |
+| `ticket_id` | `u64`     | topic                   |
+| `bidder`    | `Address` | Address placing the bid |
+| `amount`    | `i128`    | Bid amount              |
+
+## `AuctionSettled`
+
+Emitted when an auction settles and ownership transfers to the winner (issue #105).
+
+| Field       | Type      | Notes              |
+| ----------- | --------- | ------------------ |
+| `ticket_id` | `u64`     | topic              |
+| `buyer`     | `Address` | Winning bidder     |
+| `amount`    | `i128`    | Winning bid amount |
+
+## `OfferMade`
+
+Emitted when a buyer makes an offer on a listed ticket (issue #106).
+
+| Field       | Type      | Notes                    |
+| ----------- | --------- | ------------------------ |
+| `ticket_id` | `u64`     | topic                    |
+| `buyer`     | `Address` | Address making the offer |
+| `amount`    | `i128`    | Offer amount             |
+
+## `OfferAccepted`
+
+Emitted when a seller accepts an offer (issue #106).
+
+| Field       | Type      | Notes                            |
+| ----------- | --------- | -------------------------------- |
+| `ticket_id` | `u64`     | topic                            |
+| `buyer`     | `Address` | Address whose offer was accepted |
+| `amount`    | `i128`    | Accepted offer amount            |
+
+## `OfferCancelled`
+
+Emitted when a buyer cancels their offer (issue #106).
+
+| Field       | Type      | Notes                        |
+| ----------- | --------- | ---------------------------- |
+| `ticket_id` | `u64`     | topic                        |
+| `buyer`     | `Address` | Address cancelling the offer |
+| `amount`    | `i128`    | Cancelled offer amount       |
+
 ## Admin events
 
 | Event                     | Emitted by                                 | Fields                                                            |

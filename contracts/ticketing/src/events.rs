@@ -190,7 +190,8 @@ pub struct TicketResold {
 
 #[contractevent]
 #[derive(Clone, Debug, Eq, PartialEq)]
-/// Emitted by `start_auction` when a timed auction begins (issue #105).
+/// Emitted when an auction starts on a ticket (issue #105).
+/// Emitted by `start_auction` after the auction is saved (issue #105).
 pub struct AuctionStarted {
     #[topic]
     pub ticket_id: u64,
@@ -201,7 +202,8 @@ pub struct AuctionStarted {
 
 #[contractevent]
 #[derive(Clone, Debug, Eq, PartialEq)]
-/// Emitted by `place_bid` when a bid is placed on an auction (issue #105).
+/// Emitted when a bid is placed on an auctioned ticket (issue #105).
+/// Emitted by `place_bid` after the bid is recorded (issue #105).
 pub struct BidPlaced {
     #[topic]
     pub ticket_id: u64,
@@ -211,45 +213,46 @@ pub struct BidPlaced {
 
 #[contractevent]
 #[derive(Clone, Debug, Eq, PartialEq)]
-/// Emitted by `settle_auction` after the winning bid is paid out (issue #105).
+/// Emitted when an auction settles and ownership transfers to the winner (issue #105).
+/// Emitted by `settle_auction` after ownership and payment are finalized (issue #105).
 pub struct AuctionSettled {
     #[topic]
     pub ticket_id: u64,
     pub seller: Address,
     pub winner: Address,
-    pub amount: i128,
-    pub royalty: i128,
+    pub final_price: i128,
 }
 
 #[contractevent]
 #[derive(Clone, Debug, Eq, PartialEq)]
-/// Emitted by `make_offer` when an escrowed offer is placed (issue #106).
+/// Emitted when a buyer makes an offer on a listed ticket (issue #106).
+/// Emitted by `make_offer` after the offer is saved (issue #106).
 pub struct OfferMade {
     #[topic]
     pub ticket_id: u64,
     pub buyer: Address,
-    pub seller: Address,
     pub amount: i128,
 }
 
 #[contractevent]
 #[derive(Clone, Debug, Eq, PartialEq)]
-/// Emitted by `accept_offer` when the seller accepts an offer (issue #106).
+/// Emitted when a seller accepts an offer (issue #106).
+/// Emitted by `accept_offer` after ownership and payment are finalized (issue #106).
 pub struct OfferAccepted {
     #[topic]
     pub ticket_id: u64,
     pub seller: Address,
     pub buyer: Address,
-    pub amount: i128,
-    pub royalty: i128,
+    pub price: i128,
 }
 
 #[contractevent]
 #[derive(Clone, Debug, Eq, PartialEq)]
-/// Emitted by `cancel_offer` when a buyer cancels their offer (issue #106).
+/// Emitted when a buyer cancels their offer (issue #106).
+/// Emitted by `cancel_offer` after the offer is removed (issue #106).
 pub struct OfferCancelled {
     #[topic]
     pub ticket_id: u64,
     pub buyer: Address,
-    pub seller: Address,
+    pub amount: i128,
 }
