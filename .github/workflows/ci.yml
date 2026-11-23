@@ -43,6 +43,9 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
+      - name: Check code compiles
+        run: cargo check --workspace --all-targets
+
       - name: Check formatting
         run: cargo fmt --all -- --check
 
@@ -76,6 +79,9 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Check WASM target builds
+        run: cargo build --target wasm32v1-none --release
 
       - name: Install Stellar CLI
         uses: stellar/stellar-cli@v27.1.0

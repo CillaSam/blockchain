@@ -1185,7 +1185,7 @@
               },
               "durability": "persistent",
               "val": {
-                "u32": 1
+                "u32": 0
               }
             }
           },
@@ -1218,6 +1218,18 @@
                       },
                       "val": {
                         "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                      }
+                    },
+                    {
+                      "key": {
+                        "vec": [
+                          {
+                            "symbol": "MaxRoyaltyBps"
+                          }
+                        ]
+                      },
+                      "val": {
+                        "u32": 500
                       }
                     },
                     {

@@ -227,7 +227,7 @@
                   "u64": "0"
                 },
                 {
-                  "bytes": "b464e022971768183dedc33e9e6f540df966908ff0a16e10f825667c772842df"
+                  "bytes": "e8ad72169a6f89bcce309d8268e0c7614dccce2fa5206c411efffd0c69413fcb"
                 },
                 {
                   "u64": "5000"
@@ -659,7 +659,7 @@
                       "symbol": "secret_hash"
                     },
                     "val": {
-                      "bytes": "b464e022971768183dedc33e9e6f540df966908ff0a16e10f825667c772842df"
+                      "bytes": "e8ad72169a6f89bcce309d8268e0c7614dccce2fa5206c411efffd0c69413fcb"
                     }
                   }
                 ]
@@ -1012,6 +1012,18 @@
                       },
                       "val": {
                         "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                      }
+                    },
+                    {
+                      "key": {
+                        "vec": [
+                          {
+                            "symbol": "MaxRoyaltyBps"
+                          }
+                        ]
+                      },
+                      "val": {
+                        "u32": 500
                       }
                     },
                     {

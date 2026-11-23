@@ -1270,11 +1270,10 @@ fn check_in_requires_the_organizers_auth() {
     assert_eq!(client.verify_ticket(&ticket_id).status, TicketStatus::Used);
 }
 
-/// Current behaviour: unlike `revoke_with_refund` (which rejects used
-/// tickets), `revoke_ticket` has no status guard, so an organizer may revoke
-/// a ticket that was already checked in and it becomes permanently Revoked.
+/// Fix for issue #442: `revoke_ticket` now rejects Used tickets (consistent
+/// with `revoke_with_refund`). Previously only `Revoked` was guarded.
 #[test]
-fn revoke_ticket_on_a_used_ticket_succeeds_and_marks_it_revoked() {
+fn revoke_ticket_rejects_used_ticket() {
     let (env, client, _token, _token_asset, _admin, organizer) = setup();
     make_event(&env, &client, &organizer, 1);
     let buyer = Address::generate(&env);
@@ -1287,17 +1286,126 @@ fn revoke_ticket_on_a_used_ticket_succeeds_and_marks_it_revoked() {
         &1_000i128,
     );
     client.check_in(&organizer, &ticket_id);
-    assert_eq!(client.verify_ticket(&ticket_id).status, TicketStatus::Used);
+    assert_eq!(client.get_ticket(&ticket_id).status, TicketStatus::Used);
 
-    client.revoke_ticket(&organizer, &ticket_id);
-    assert_eq!(
-        client.verify_ticket(&ticket_id).status,
-        TicketStatus::Revoked
+    let result = client.try_revoke_ticket(&organizer, &ticket_id);
+    assert_eq!(result, Err(Ok(Error::AlreadyUsed)));
+    // Status must remain Used — not silently overwritten to Revoked.
+    assert_eq!(client.get_ticket(&ticket_id).status, TicketStatus::Used);
+}
+
+/// Fix for issue #442: `revoke_ticket` now rejects Refunded tickets.
+#[test]
+fn revoke_ticket_rejects_refunded_ticket() {
+    let (env, client, _token, _token_asset, _admin, organizer) = setup();
+    // Create an event with a generous refund window so refund_primary succeeds.
+    client.create_event(
+        &organizer,
+        &1,
+        &EventParams {
+            name: String::from_str(&env, "Refundable Show"),
+            category: String::from_str(&env, "concert"),
+            max_resale_multiplier_bps: 12_000,
+            royalty_bps: 0,
+            starts_at: 999_999,
+            transfer_freeze_seconds: 0,
+            resale_cutoff_seconds: 0,
+            max_per_wallet: None,
+            refund_window_seconds: Some(999_999),
+            presale_starts_at: None,
+            presale_ends_at: None,
+        },
     );
+    let buyer = Address::generate(&env);
+    let ticket_id = client.issue_ticket(
+        &organizer,
+        &1,
+        &buyer,
+        &String::from_str(&env, "GA"),
+        &String::from_str(&env, "1"),
+        &1_000i128,
+    );
+    client.refund_primary(&buyer, &ticket_id);
+    assert_eq!(client.get_ticket(&ticket_id).status, TicketStatus::Refunded);
 
-    // The ticket now reports Revoked rather than AlreadyUsed on re-entry.
-    let result = client.try_check_in(&organizer, &ticket_id);
-    assert_eq!(result, Err(Ok(Error::Revoked)));
+    let result = client.try_revoke_ticket(&organizer, &ticket_id);
+    assert_eq!(result, Err(Ok(Error::AlreadyRefunded)));
+    // Status must remain Refunded — not overwritten to Revoked.
+    assert_eq!(client.get_ticket(&ticket_id).status, TicketStatus::Refunded);
+}
+
+/// Fix for issue #442: `revoke_batch` now rejects Used tickets.
+#[test]
+fn revoke_batch_rejects_used_ticket() {
+    let (env, client, _token, _token_asset, _admin, organizer) = setup();
+    make_event(&env, &client, &organizer, 1);
+    let buyer = Address::generate(&env);
+    let t1 = client.issue_ticket(
+        &organizer,
+        &1,
+        &buyer,
+        &String::from_str(&env, "GA"),
+        &String::from_str(&env, "1"),
+        &1_000i128,
+    );
+    let t2 = client.issue_ticket(
+        &organizer,
+        &1,
+        &buyer,
+        &String::from_str(&env, "GA"),
+        &String::from_str(&env, "2"),
+        &1_000i128,
+    );
+    client.check_in(&organizer, &t1);
+    assert_eq!(client.get_ticket(&t1).status, TicketStatus::Used);
+
+    let mut batch = Vec::new(&env);
+    batch.push_back(t1);
+    batch.push_back(t2);
+    let result = client.try_revoke_batch(&organizer, &batch);
+    assert_eq!(result, Err(Ok(Error::AlreadyUsed)));
+    // Atomicity: t2 must not have been revoked either.
+    assert_eq!(client.get_ticket(&t2).status, TicketStatus::Valid);
+}
+
+/// Fix for issue #442: `revoke_batch` now rejects Refunded tickets.
+#[test]
+fn revoke_batch_rejects_refunded_ticket() {
+    let (env, client, _token, _token_asset, _admin, organizer) = setup();
+    client.create_event(
+        &organizer,
+        &1,
+        &EventParams {
+            name: String::from_str(&env, "Refundable Show"),
+            category: String::from_str(&env, "concert"),
+            max_resale_multiplier_bps: 12_000,
+            royalty_bps: 0,
+            starts_at: 999_999,
+            transfer_freeze_seconds: 0,
+            resale_cutoff_seconds: 0,
+            max_per_wallet: None,
+            refund_window_seconds: Some(999_999),
+            presale_starts_at: None,
+            presale_ends_at: None,
+        },
+    );
+    let buyer = Address::generate(&env);
+    let ticket_id = client.issue_ticket(
+        &organizer,
+        &1,
+        &buyer,
+        &String::from_str(&env, "GA"),
+        &String::from_str(&env, "1"),
+        &1_000i128,
+    );
+    client.refund_primary(&buyer, &ticket_id);
+    assert_eq!(client.get_ticket(&ticket_id).status, TicketStatus::Refunded);
+
+    let mut batch = Vec::new(&env);
+    batch.push_back(ticket_id);
+    let result = client.try_revoke_batch(&organizer, &batch);
+    assert_eq!(result, Err(Ok(Error::AlreadyRefunded)));
+    assert_eq!(client.get_ticket(&ticket_id).status, TicketStatus::Refunded);
 }
 
 #[test]
