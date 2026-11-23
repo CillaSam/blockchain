@@ -429,6 +429,15 @@ pub enum DataKey {
     /// ledger seconds (issue #72). Absent means the ticket is valid whenever
     /// the event allows check-in.
     TicketValidity(u64),
+    /// Platform fee configuration including basis points and recipient address (issue #103).
+    /// Stored as a struct instead of separate keys.
+    PlatformFee,
+    /// Maximum royalty basis points across all events (issue #103).
+    /// Used to validate platform fee changes.
+    MaxRoyaltyBps,
+    /// Pending admin transfer nominee (issue #100).
+    /// The address nominated by the current admin to become the new admin.
+    PendingAdmin,
 }
 
 // Keep the persistent encoding beside the public and stored ticket types.

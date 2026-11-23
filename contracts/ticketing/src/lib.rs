@@ -18,15 +18,16 @@ pub use constants::{
 use constants::{LEDGER_BUMP, LEDGER_THRESHOLD};
 pub use error::Error;
 pub use events::{
-    AuctionSettled, AuctionStarted, BidPlaced, ContractInitialized, EventCancelled, EventCreated,
-    ListingCancelled, OfferAccepted, OfferCancelled, OfferMade, OrganizerApproved,
-    OrganizerRevoked, PaymentTokenChanged, PaymentTokenProposed, PlatformFeeUpdated, PrimarySale,
+    AdminProposed, AdminTransferred, AuctionSettled, AuctionStarted, BidPlaced,
+    ContractInitialized, ContractUpgraded, EventCancelled, EventCreated, ListingCancelled,
+    OfferAccepted, OfferCancelled, OfferMade, OrganizerApproved, OrganizerRevoked,
+    PaymentTokenChanged, PaymentTokenProposed, PlatformFeeUpdated, PrimarySale,
     PurchaseThrottleUpdated, TicketCheckedIn, TicketIssued, TicketListed, TicketResold,
     TicketTransferred,
 };
 pub use types::{
-    Category, DataKey, Event, EventParams, GiftClaim, PendingPaymentToken, PlatformFee,
-    StoredTicket, Ticket, TicketRecipient, TicketStatus,
+    Auction, Category, DataKey, Event, EventParams, GiftClaim, Offer, PendingPaymentToken,
+    PlatformFee, StoredTicket, Ticket, TicketRecipient, TicketStatus,
 };
 
 use soroban_sdk::{contract, contractimpl, token, Address, Bytes, BytesN, Env, Map, String, Vec};
@@ -280,7 +281,7 @@ impl TicketingContract {
         }
         // Issue #103: the royalty and the platform fee together cannot take more
         // than the whole resale price.
-        if params.royalty_bps + Self::platform_fee_bps(&env) > BPS_DENOMINATOR {
+        if params.royalty_bps + Self::platform_fee_bps(env.clone()) > BPS_DENOMINATOR {
             return Err(Error::InvalidRoyalty);
         }
         // Issue #124: a multiplier below face value (10_000 bps) makes every
@@ -1088,7 +1089,12 @@ impl TicketingContract {
         env.storage()
             .instance()
             .set(&DataKey::PlatformFeeBps, &fee_bps);
-        PlatformFeeUpdated { admin, fee_bps }.publish(&env);
+        PlatformFeeUpdated {
+            admin: admin.clone(),
+            fee_bps,
+            recipient: admin,
+        }
+        .publish(&env);
         Ok(())
     }
 
@@ -2065,8 +2071,16 @@ impl TicketingContract {
         // The sale price is captured before the ticket is overwritten, so the
         // published event carries the price the buyer actually paid.
         let price = ticket.resale_price;
-        let (royalty, seller_amount) = Self::split_resale_price(&event, ticket.resale_price)?;
-        let price = ticket.resale_price;
+        let fee_config = Self::platform_fee_config(&env);
+        let platform_fee = if let Some(ref fee) = fee_config {
+            Self::calculate_fee(price, fee.bps)?
+        } else {
+            0
+        };
+        let (royalty, seller_net) = Self::split_resale_price(&event, price)?;
+        let seller_amount = seller_net
+            .checked_sub(platform_fee)
+            .ok_or(Error::MathOverflow)?;
         let seller = ticket.owner.clone();
         Self::move_owner_balance(&env, ticket_id, &seller, &buyer);
         ticket.owner = buyer.clone();
@@ -2121,7 +2135,7 @@ impl TicketingContract {
         // An auctioned ticket has no fixed price to quote (issue #105).
         Self::ensure_no_auction(&env, ticket_id)?;
         let event = Self::get_event_inner(&env, ticket.event_id)?;
-        let fee_bps = Self::platform_fee_bps(&env);
+        let fee_bps = Self::platform_fee_bps(env.clone());
         let (royalty, _, seller_amount) = Self::resale_split(&event, ticket.resale_price, fee_bps)?;
         Ok((ticket.resale_price, royalty, seller_amount))
     }
@@ -2512,8 +2526,9 @@ impl TicketingContract {
                 }
                 AuctionSettled {
                     ticket_id,
-                    buyer: winner.clone(),
-                    amount: bid,
+                    seller,
+                    winner: winner.clone(),
+                    final_price: bid,
                 }
                 .publish(&env);
             }
@@ -2676,8 +2691,9 @@ impl TicketingContract {
         }
         OfferAccepted {
             ticket_id,
+            seller: owner,
             buyer,
-            amount: offer.amount,
+            price: offer.amount,
         }
         .publish(&env);
         Ok(())
@@ -2721,7 +2737,6 @@ impl TicketingContract {
         OfferCancelled {
             ticket_id,
             buyer,
-            amount: offer.amount,
         }
         .publish(&env);
         Ok(())
@@ -3256,6 +3271,17 @@ impl TicketingContract {
         Ok(product / BPS_DENOMINATOR as i128)
     }
 
+    /// Calculate fee from price and fee_bps.
+    fn calculate_fee(price: i128, fee_bps: u32) -> Result<i128, Error> {
+        if fee_bps == 0 {
+            return Ok(0);
+        }
+        let product = price
+            .checked_mul(fee_bps as i128)
+            .ok_or(Error::MathOverflow)?;
+        Ok(product / BPS_DENOMINATOR as i128)
+    }
+
     /// Splits a resale price into `(royalty, seller_amount)` using the event's
     /// royalty rate. The seller takes the remainder, so the two always sum to
     /// `price`.
@@ -3687,7 +3713,7 @@ impl TicketingContract {
         env.storage().instance().get(&DataKey::PlatformFee)
     }
 
-    fn platform_fee_bps(env: &Env) -> u32 {
+    fn get_platform_fee_bps(env: &Env) -> u32 {
         Self::platform_fee_config(env).map_or(0, |fee| fee.bps)
     }
 
