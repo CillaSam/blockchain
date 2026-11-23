@@ -1712,9 +1712,7 @@ impl TicketingContract {
         Self::require_not_paused(&env)?;
         let mut ticket = Self::get_ticket_inner(&env, ticket_id)?;
         Self::require_organizer(&env, ticket.event_id, &organizer)?;
-        if ticket.status == TicketStatus::Revoked {
-            return Err(Error::Revoked);
-        }
+        Self::require_not_terminal(&ticket)?;
         ticket.status = TicketStatus::Revoked;
         // A revoked ticket must not keep a live resale asking price (issue
         // #129): `resale_price` is the marker a listing is read from, so
@@ -1825,9 +1823,7 @@ impl TicketingContract {
         for ticket_id in ticket_ids.iter() {
             let mut ticket = Self::get_ticket_inner(&env, ticket_id)?;
             Self::require_organizer(&env, ticket.event_id, &organizer)?;
-            if ticket.status == TicketStatus::Revoked {
-                return Err(Error::Revoked);
-            }
+            Self::require_not_terminal(&ticket)?;
             ticket.status = TicketStatus::Revoked;
             Self::remove_gift_claim(&env, ticket_id);
             Self::save_ticket(&env, ticket_id, &ticket);
