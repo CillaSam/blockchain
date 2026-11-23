@@ -2100,6 +2100,7 @@ impl TicketingContract {
         // published event carries the price the buyer actually paid.
         let price = ticket.resale_price;
         let fee_config = Self::platform_fee_config(&env);
+        let fee_bps = Self::platform_fee_bps(&env);
         let platform_fee = if let Some(ref fee) = fee_config {
             Self::calculate_fee(price, fee.bps)?
         } else {
