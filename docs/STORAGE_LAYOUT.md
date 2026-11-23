@@ -18,21 +18,21 @@ Instance keys share a single storage entry and the contract instance's
 TTL. One `instance().extend_ttl()` call (made at the top of almost every
 entry point via `extend_instance_ttl`) extends all of them together.
 
-| Key                      | Value type            | Set by                                                                       | Notes                                                                                                                                      |
-| ------------------------ | --------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `Admin`                  | `Address`             | `initialize`                                                                 | Contract admin; also marks the contract as initialized                                                                                     |
-| `PaymentToken`           | `Address`             | `initialize`, `apply_payment_token`                                          | Contract-wide SEP-41 payment token                                                                                                         |
-| `TokenDecimals`          | `u32`                 | `initialize`, `apply_payment_token`                                          | Cached decimals of the active payment token (issue #233)                                                                                   |
-| `PendingPaymentToken`    | `PendingPaymentToken` | `propose_payment_token`                                                      | Timelocked token change; removed on apply                                                                                                  |
-| `MinPurchaseSpacing`     | `u32`                 | `set_purchase_throttle`                                                      | Minimum ledger spacing between a buyer's primary purchases; 0 disables                                                                     |
-| `NextTicketId`           | `u64`                 | `initialize`, `mint`                                                         | Monotonic ticket-id allocator                                                                                                              |
-| `OutstandingEscrow`      | `i128`                | `purchase_primary`, `release_escrow`, `revoke_with_refund`, `refund_primary` | Total escrowed primary-sale proceeds across all events (issue #317)                                                                        |
-| `PlatformFeeBps`         | `u32`                 | `set_platform_fee_bps`                                                       | Platform fee in basis points taken from primary sales (issue #104); absent means no fee                                                    |
-| `PlatformFee`            | `PlatformFee`         | `set_platform_fee`                                                           | Platform fee configuration for resales, including fee basis points and recipient address (issue #103); absent means no fee                 |
-| `MaxRoyaltyBps`          | `u32`                 | `record_royalty_bps` during event creation                                   | Highest royalty_bps across all events, used to validate that platform fee + highest royalty ≤ 100% (issue #103); zero when no events exist |
-| `PendingAdmin`           | `Address`             | `propose_admin`                                                              | Nominated admin awaiting acceptance via accept_admin (issue #100); removed when accepted                                                   |
-| `OutstandingResaleFunds` | `i128`                | `place_bid`, `settle_auction`, `make_offer`, `accept_offer`, `cancel_offer`  | Total resale bids/offers held (issues #105, #106)                                                                                          |
-| `Paused`                 | `bool`                | `pause`, `unpause`                                                           | Contract-wide kill switch; absent means unpaused                                                                                           |
+| Key                      | Value type            | Set by                                                                       | Notes                                                                                                                                       |
+| ------------------------ | --------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Admin`                  | `Address`             | `initialize`                                                                 | Contract admin; also marks the contract as initialized                                                                                      |
+| `PaymentToken`           | `Address`             | `initialize`, `apply_payment_token`                                          | Contract-wide SEP-41 payment token                                                                                                          |
+| `TokenDecimals`          | `u32`                 | `initialize`, `apply_payment_token`                                          | Cached decimals of the active payment token (issue #233)                                                                                    |
+| `PendingPaymentToken`    | `PendingPaymentToken` | `propose_payment_token`                                                      | Timelocked token change; removed on apply                                                                                                   |
+| `MinPurchaseSpacing`     | `u32`                 | `set_purchase_throttle`                                                      | Minimum ledger spacing between a buyer's primary purchases; 0 disables                                                                      |
+| `NextTicketId`           | `u64`                 | `initialize`, `mint`                                                         | Monotonic ticket-id allocator                                                                                                               |
+| `OutstandingEscrow`      | `i128`                | `purchase_primary`, `release_escrow`, `revoke_with_refund`, `refund_primary` | Total escrowed primary-sale proceeds across all events (issue #317)                                                                         |
+| `PlatformFeeBps`         | `u32`                 | `set_platform_fee_bps` (deprecated)                                          | DEPRECATED: Old primary sale fee storage (issue #104). Migrated to unified `PlatformFee`. Kept for backwards compatibility during migration |
+| `PlatformFee`            | `PlatformFee`         | `set_platform_fee`, `set_platform_fee_bps`                                   | Unified platform fee configuration with `primary_bps`, `resale_bps`, and `recipient` (issue #427); absent means no fees                     |
+| `MaxRoyaltyBps`          | `u32`                 | `record_royalty_bps` during event creation                                   | Highest royalty_bps across all events, used to validate that platform fee + highest royalty ≤ 100% (issue #103); zero when no events exist  |
+| `PendingAdmin`           | `Address`             | `propose_admin`                                                              | Nominated admin awaiting acceptance via accept_admin (issue #100); removed when accepted                                                    |
+| `OutstandingResaleFunds` | `i128`                | `place_bid`, `settle_auction`, `make_offer`, `accept_offer`, `cancel_offer`  | Total resale bids/offers held (issues #105, #106)                                                                                           |
+| `Paused`                 | `bool`                | `pause`, `unpause`                                                           | Contract-wide kill switch; absent means unpaused                                                                                            |
 
 ## Persistent storage
 
@@ -132,8 +132,8 @@ Instance storage (one entry, shared TTL)
 ├── MinPurchaseSpacing             → u32
 ├── NextTicketId                   → u64
 ├── OutstandingEscrow              → i128
-├── PlatformFeeBps                 → u32
-├── PlatformFee                    → PlatformFee
+├── PlatformFeeBps                 → u32 (DEPRECATED, migrated to PlatformFee)
+├── PlatformFee                    → PlatformFee (unified: primary_bps, resale_bps, recipient)
 ├── MaxRoyaltyBps                  → u32
 ├── PendingAdmin                   → Address
 ├── OutstandingResaleFunds         → i128

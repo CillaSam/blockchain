@@ -279,14 +279,16 @@ pub struct PendingPaymentToken {
     pub apply_after_ledger: u32,
 }
 
-/// Platform fee taken from every resale and paid to `recipient` out of the
-/// seller's proceeds, alongside the organizer royalty (issue #103).
+/// Unified platform fee configuration for both primary sales and resales (issue #427).
+/// Paid to `recipient` from seller's proceeds on resales, and from buyer on primary sales.
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PlatformFee {
+    /// Share of each primary sale price, in basis points.
+    pub primary_bps: u32,
     /// Share of each resale price, in basis points.
-    pub bps: u32,
-    /// Address that receives the fee.
+    pub resale_bps: u32,
+    /// Address that receives both fees.
     pub recipient: Address,
 }
 
@@ -406,11 +408,11 @@ pub enum DataKey {
     WalletPurchaseCount(u64, Address),
     /// Allowlist member for an event.
     AllowlistMember(u64, Address),
-    /// Platform fee taken from each primary sale, in basis points (issue #104).
-    /// Absent means no fee.
+    /// DEPRECATED: Old primary sale fee storage (issue #104). Migrated to PlatformFee.
+    /// Kept for migration path. Use PlatformFee instead.
     PlatformFeeBps,
-    /// Platform fee configuration for resales, including fee basis points and
-    /// recipient address (issue #103). Absent means no fee.
+    /// Unified platform fee configuration for both primary and resales (issue #427).
+    /// Contains primary_bps, resale_bps, and recipient. Absent means no fees.
     PlatformFee,
     /// Highest royalty_bps across all events, cached so set_platform_fee can
     /// validate that the platform fee plus the highest royalty never exceeds
